@@ -68,6 +68,21 @@ int main()
 	aabb_player.min = c2V(player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y);
 	aabb_player.max = c2V(player.getAnimatedSprite().getGlobalBounds().width / 6, player.getAnimatedSprite().getGlobalBounds().width / 6);
 
+	// setup bounding box
+	sf::VertexArray boundingBox(sf::LinesStrip);
+	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });
+	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width, player.getAnimatedSprite().getPosition().y });
+
+	boundingBox.append(sf::Vector2f{ 20.0f, 10.0f });
+	boundingBox.append(sf::Vector2f{ 20.0f, 20.0f });
+
+	boundingBox.append(sf::Vector2f{ 10.0f, 20.0f });
+	boundingBox.append(sf::Vector2f{ 10.0f, 10.0f });
+
+	
+
+
+
 
 	// Initialize Input
 	Input input;
@@ -188,6 +203,8 @@ int main()
 
 		// Draw the NPC's Current Animated Sprite
 		window.draw(npc.getAnimatedSprite());
+
+		window.draw(boundingBox);
 
 		// Update the window
 		window.display();
