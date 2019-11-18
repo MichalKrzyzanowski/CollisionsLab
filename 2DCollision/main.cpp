@@ -15,6 +15,9 @@ void updateBoundingBox(VertexArray& t_box, GameObject& t_player);
 
 int main()
 {
+	enum ShapeControl { AABB, CIRCLE };
+	ShapeControl currentShape = AABB;
+
 	// Create the main window
 	sf::RenderWindow window(sf::VideoMode(800, 600), "SFML window");
 
@@ -50,6 +53,7 @@ int main()
 	player_animated_sprite.addFrame(sf::IntRect(343, 3, 84, 84));
 	player_animated_sprite.addFrame(sf::IntRect(428, 3, 84, 84));
 
+
 	// Setup the NPC
 	GameObject &npc = NPC(npc_animated_sprite);
 
@@ -69,6 +73,9 @@ int main()
 	c2AABB aabb_player;
 	aabb_player.min = c2V(player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y);
 	aabb_player.max = c2V(player.getAnimatedSprite().getGlobalBounds().width / 6, player.getAnimatedSprite().getGlobalBounds().width / 6);
+
+	// player circle
+	sf::CircleShape playerCircle(50);
 
 	// setup capsule colision
 	sf::RectangleShape capsuleRect;
@@ -118,11 +125,17 @@ int main()
 	};
 
 	c2Ray rayCollision;
+	c2Raycast cast;
+
 	rayCollision.p = c2V(rayPointOne.x, rayPointOne.y);
-	rayCollision.d = c2Norm(c2V(rayPointOne.x, rayPointOne.y));
-	rayCollision.t = 100;
+
+	sf::Vector2f distance = rayPointTwo - rayPointOne;
+	float magnitude = sqrt((distance.x * distance.x) + (distance.y * distance.y));
+	sf::Vector2f unitVector = distance / magnitude;
+
+	rayCollision.d = c2Norm(c2V(unitVector.x, unitVector.y));
+	rayCollision.t = magnitude;
 	
-	//rayCollision.d
 
 	// setup bounding box
 	sf::VertexArray boundingBox(sf::LinesStrip);
@@ -141,7 +154,10 @@ int main()
 	while (window.isOpen())
 	{
 		// Move Sprite Follow Mouse
+
 		player.getAnimatedSprite().setPosition(window.mapPixelToCoords(sf::Mouse::getPosition(window)));
+
+		playerCircle.setPosition(window.mapPixelToCoords(sf::Mouse::getPosition(window)));
 
 		// Move The NPC
 		sf::Vector2f move_to(npc.getAnimatedSprite().getPosition().x + direction.x, npc.getAnimatedSprite().getPosition().y + direction.y);
@@ -214,6 +230,14 @@ int main()
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 				{
 					input.setCurrent(Input::Action::UP);
+				}
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1))
+				{
+					currentShape = AABB;
+				}
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num2))
+				{
+					currentShape = CIRCLE;
 				}
 				break;
 			default:
@@ -296,28 +320,32 @@ int main()
 			triangle.setOutlineColor(sf::Color::White);
 		}
 
+		result = 0;
+
 		// collision: AABB->ray
-		result = c2AABBtoPoly(aabb_player, &polygon, NULL);
-		cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+		result = c2RaytoAABB(rayCollision, aabb_player, &cast);
+		cout << ((result != 0) ? ("Collision ray") : "") << endl;
 
 		if (result)
 		{
 
-			triangle.setOutlineColor(sf::Color::Red);
+			ray[0].color = sf::Color::Red;
+			ray[1].color = sf::Color::Red;
 
 		}
 
 		else
 		{
 
-			triangle.setOutlineColor(sf::Color::White);
+			ray[0].color = sf::Color::White;
+			ray[1].color = sf::Color::White;
 		}
 
 		// Clear screen
 		window.clear();
 
 		// Draw the Players Current Animated Sprite
-		window.draw(player.getAnimatedSprite());
+		//window.draw(player.getAnimatedSprite());
 
 		// Draw the NPC's Current Animated Sprite
 		window.draw(npc.getAnimatedSprite());
@@ -332,7 +360,12 @@ int main()
 		window.draw(triangle);
 
 		window.draw(ray, 2, sf::Lines);
+
+		if (currentShape == AABB)
 		window.draw(boundingBox);
+
+		if (currentShape == CIRCLE)
+		window.draw(playerCircle);
 
 		// Update the window
 		window.display();
