@@ -15,7 +15,7 @@ void updateBoundingBox(VertexArray& t_box, GameObject& t_player);
 
 int main()
 {
-	enum ShapeControl { AABB, CIRCLE };
+	enum ShapeControl { AABB, CIRCLE, RAY };
 	ShapeControl currentShape = AABB;
 
 	// Create the main window
@@ -76,6 +76,21 @@ int main()
 
 	// player circle
 	sf::CircleShape playerCircle(50);
+	playerCircle.setOutlineThickness(1);
+	playerCircle.setFillColor(sf::Color(255, 255, 255, 0));
+	c2Circle playerCircleCol;
+	playerCircleCol.p = c2V(playerCircle.getPosition().x + playerCircle.getRadius(), playerCircle.getPosition().y + playerCircle.getRadius());
+	playerCircleCol.r = 50;
+
+	// npc circle
+	sf::CircleShape npcCircle(50);
+	npcCircle.setOutlineThickness(1);
+	npcCircle.setFillColor(sf::Color(255, 255, 255, 0));
+	npcCircle.setPosition(500, 300);
+	c2Circle npcCircleCol;
+	npcCircleCol.p = c2V(npcCircle.getPosition().x + npcCircle.getRadius(), npcCircle.getPosition().y + npcCircle.getRadius());
+	npcCircleCol.r = 50;
+
 
 	// setup capsule colision
 	sf::RectangleShape capsuleRect;
@@ -114,8 +129,27 @@ int main()
 	polygon.verts[2] = c2V(triangle.getPoint(2).x + triangle.getPosition().x, triangle.getPoint(2).y + triangle.getPosition().y);
 	c2MakePoly(&polygon);
 
-	// setup ray
+	// setup player ray
+	sf::Vector2f rayPlayerPointOne{ 500, 100 };
+	sf::Vector2f rayPlayerPointTwo{ window.mapPixelToCoords(sf::Mouse::getPosition(window)) };
+	sf::Vertex playerRay[] =
+	{
+		sf::Vertex(rayPlayerPointOne),
+		sf::Vertex(rayPlayerPointTwo)
+	};
 	
+	c2Ray playerRayCollision;
+
+	playerRayCollision.p = c2V(rayPlayerPointOne.x, rayPlayerPointOne.y);
+
+	sf::Vector2f playerDistance = rayPlayerPointTwo - rayPlayerPointOne;
+	float playerMagnitude = sqrt((playerDistance.x * playerDistance.x) + (playerDistance.y * playerDistance.y));
+	sf::Vector2f playerUnitVector = playerDistance / playerMagnitude;
+
+	playerRayCollision.d = c2Norm(c2V(playerUnitVector.x, playerUnitVector.y));
+	playerRayCollision.t = playerMagnitude;
+
+	// setup ray
 	sf::Vector2f rayPointOne{ 10, 10 };
 	sf::Vector2f rayPointTwo{ 50, 200 };
 	sf::Vertex ray[] =
@@ -139,6 +173,7 @@ int main()
 
 	// setup bounding box
 	sf::VertexArray boundingBox(sf::LinesStrip);
+	sf::VertexArray boundingBoxPlayer(sf::LinesStrip);
 	
 
 	// Initialize Input
@@ -162,7 +197,9 @@ int main()
 		// Move The NPC
 		sf::Vector2f move_to(npc.getAnimatedSprite().getPosition().x + direction.x, npc.getAnimatedSprite().getPosition().y + direction.y);
 
-		updateBoundingBox(boundingBox, player);
+		updateBoundingBox(boundingBox, npc);
+		updateBoundingBox(boundingBoxPlayer, player);
+		
 
 		if (move_to.x < 0) {
 			direction.x *= -1;
@@ -194,7 +231,23 @@ int main()
 			npc.getAnimatedSprite().getGlobalBounds().width,
 			npc.getAnimatedSprite().getPosition().y +
 			npc.getAnimatedSprite().getGlobalBounds().height
+
 		);
+
+		rayPlayerPointTwo = sf::Vector2f{ window.mapPixelToCoords(sf::Mouse::getPosition(window)) };
+		playerRay[1].position = rayPlayerPointTwo;
+
+		playerRayCollision.p = c2V(rayPlayerPointOne.x, rayPlayerPointOne.y);
+
+		sf::Vector2f playerDistance = rayPlayerPointTwo - rayPlayerPointOne;
+		float playerMagnitude = sqrt((playerDistance.x * playerDistance.x) + (playerDistance.y * playerDistance.y));
+		sf::Vector2f playerUnitVector = playerDistance / playerMagnitude;
+
+		playerRayCollision.d = c2Norm(c2V(playerUnitVector.x, playerUnitVector.y));
+		playerRayCollision.t = playerMagnitude;
+
+		playerCircleCol.p = c2V(playerCircle.getPosition().x + playerCircle.getRadius(), playerCircle.getPosition().y + playerCircle.getRadius());
+		playerCircleCol.r = 50;
 
 		// Update Player AABB
 		aabb_player.min = c2V(
@@ -239,6 +292,10 @@ int main()
 				{
 					currentShape = CIRCLE;
 				}
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3))
+				{
+					currentShape = RAY;
+				}
 				break;
 			default:
 				input.setCurrent(Input::Action::IDLE);
@@ -255,90 +312,298 @@ int main()
 		// Update the Player
 		npc.update();
 
-		// Check for collisions
-		result = c2AABBtoAABB(aabb_player, aabb_npc);
-		cout << ((result != 0) ? ("Collision") : "") << endl;
+		
 
-		if (result) 
+		if (currentShape == AABB)
 		{
-			player.getAnimatedSprite().setColor(sf::Color(255, 0, 0));
+			// Check for collisions
+			result = c2AABBtoAABB(aabb_player, aabb_npc);
+			cout << ((result != 0) ? ("Collision") : "") << endl;
 
-			for (int i = 0; i < boundingBox.getVertexCount(); i++)
+			if (result)
 			{
-				boundingBox[i].color = sf::Color::Red;
+				player.getAnimatedSprite().setColor(sf::Color(255, 0, 0));
+
+				for (int i = 0; i < boundingBox.getVertexCount(); i++)
+				{
+					boundingBox[i].color = sf::Color::Red;
+				}
+			}
+
+			else
+			{
+				player.getAnimatedSprite().setColor(sf::Color(0, 255, 0));
+			}
+
+			result = 0;
+
+
+			// collision: AABB->Capsule
+			result = c2AABBtoCapsule(aabb_player, capsule);
+			cout << ((result != 0) ? ("Collision capsule") : "") << endl;
+
+			if (result)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::Red);
+				}
+
+				capsuleRect.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::White);
+				}
+
+				capsuleRect.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: AABB->Poly
+			result = c2AABBtoPoly(aabb_player, &polygon, NULL);
+			cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+
+			if (result)
+			{
+
+				triangle.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+
+				triangle.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: AABB->ray
+			result = c2RaytoAABB(rayCollision, aabb_player, &cast);
+			cout << ((result != 0) ? ("Collision ray") : "") << endl;
+
+			if (result)
+			{
+
+				ray[0].color = sf::Color::Red;
+				ray[1].color = sf::Color::Red;
+
+			}
+
+			else
+			{
+
+				ray[0].color = sf::Color::White;
+				ray[1].color = sf::Color::White;
 			}
 		}
 
-		else
+		if (currentShape == CIRCLE)
 		{
-			player.getAnimatedSprite().setColor(sf::Color(0, 255, 0));
-		}
+			// collision: Circle->Cirlce
+			result = c2CircletoCircle(playerCircleCol, npcCircleCol);
 
-		result = 0;
-
-		// collision: AABB->Capsule
-		result = c2AABBtoCapsule(aabb_player, capsule);
-		cout << ((result != 0) ? ("Collision capsule") : "") << endl;
-
-		if (result)
-		{
-			for (int i = 0; i < 2; i++)
+			if (result)
 			{
-				capsuleCircles[i].setOutlineColor(sf::Color::Red);
+				
+
+				npcCircle.setOutlineColor(sf::Color::Red);
+
 			}
 
-			capsuleRect.setOutlineColor(sf::Color::Red);
-			
-		}
-
-		else
-		{
-			for (int i = 0; i < 2; i++)
+			else
 			{
-				capsuleCircles[i].setOutlineColor(sf::Color::White);
+				
+
+				npcCircle.setOutlineColor(sf::Color::White);
 			}
 
-			capsuleRect.setOutlineColor(sf::Color::White);
+			result = 0;
+
+			// collision: Circle->AABB
+			result = c2CircletoAABB(playerCircleCol, aabb_npc);
+			cout << ((result != 0) ? ("Collision") : "") << endl;
+
+			if (result)
+			{
+				player.getAnimatedSprite().setColor(sf::Color(255, 0, 0));
+
+				for (int i = 0; i < boundingBox.getVertexCount(); i++)
+				{
+					boundingBox[i].color = sf::Color::Red;
+				}
+			}
+
+			else
+			{
+				player.getAnimatedSprite().setColor(sf::Color(0, 255, 0));
+			}
+
+			result = 0;
+
+
+			// collision: Circle->Capsule
+			result = c2CircletoCapsule(playerCircleCol, capsule);
+			cout << ((result != 0) ? ("Collision capsule") : "") << endl;
+
+			if (result)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::Red);
+				}
+
+				capsuleRect.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::White);
+				}
+
+				capsuleRect.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: Circle->Poly
+			result = c2CircletoPoly(playerCircleCol, &polygon, NULL);
+			cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+
+			if (result)
+			{
+
+				triangle.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+
+				triangle.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: Circle->ray
+			result = c2RaytoCircle(rayCollision, playerCircleCol, &cast);
+			cout << ((result != 0) ? ("Collision ray") : "") << endl;
+
+			if (result)
+			{
+
+				ray[0].color = sf::Color::Red;
+				ray[1].color = sf::Color::Red;
+
+			}
+
+			else
+			{
+
+				ray[0].color = sf::Color::White;
+				ray[1].color = sf::Color::White;
+			}
 		}
 
-		result = 0;
-
-		// collision: AABB->Poly
-		result = c2AABBtoPoly(aabb_player, &polygon, NULL);
-		cout << ((result != 0) ? ("Collision polygon") : "") << endl;
-
-		if (result)
+		if (currentShape == RAY)
 		{
+			// collision: ray->AABB
+			result = c2RaytoAABB(playerRayCollision, aabb_npc, &cast);
+			cout << ((result != 0) ? ("Collision ray") : "") << endl;
 
-			triangle.setOutlineColor(sf::Color::Red);
+			if (result)
+			{
 
-		}
+				for (int i = 0; i < boundingBox.getVertexCount(); i++)
+				{
+					boundingBox[i].color = sf::Color::Red;
+				}
 
-		else
-		{
-			
-			triangle.setOutlineColor(sf::Color::White);
-		}
+			}
 
-		result = 0;
+			else
+			{
 
-		// collision: AABB->ray
-		result = c2RaytoAABB(rayCollision, aabb_player, &cast);
-		cout << ((result != 0) ? ("Collision ray") : "") << endl;
+				for (int i = 0; i < boundingBox.getVertexCount(); i++)
+				{
+					boundingBox[i].color = sf::Color::White;
+				}
+			}
 
-		if (result)
-		{
+			result = 0;
 
-			ray[0].color = sf::Color::Red;
-			ray[1].color = sf::Color::Red;
+			// collision: Ray->Capsule
+			result = c2RaytoCapsule(playerRayCollision, capsule, &cast);
+			cout << ((result != 0) ? ("Collision capsule") : "") << endl;
 
-		}
+			if (result)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::Red);
+				}
 
-		else
-		{
+				capsuleRect.setOutlineColor(sf::Color::Red);
 
-			ray[0].color = sf::Color::White;
-			ray[1].color = sf::Color::White;
+			}
+
+			else
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					capsuleCircles[i].setOutlineColor(sf::Color::White);
+				}
+
+				capsuleRect.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: Ray->Poly
+			result = c2RaytoPoly(playerRayCollision, &polygon, NULL, &cast);
+			cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+
+			if (result)
+			{
+
+				triangle.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+
+				triangle.setOutlineColor(sf::Color::White);
+			}
+
+			result = 0;
+
+			// collision: Circle->ray
+			result = c2RaytoCircle(playerRayCollision, npcCircleCol, &cast);
+			cout << ((result != 0) ? ("Collision ray") : "") << endl;
+
+			if (result)
+			{
+
+				npcCircle.setOutlineColor(sf::Color::Red);
+
+			}
+
+			else
+			{
+
+				npcCircle.setOutlineColor(sf::Color::White);
+			}
+
 		}
 
 		// Clear screen
@@ -361,11 +626,17 @@ int main()
 
 		window.draw(ray, 2, sf::Lines);
 
-		if (currentShape == AABB)
 		window.draw(boundingBox);
+		window.draw(npcCircle);
+
+		if (currentShape == AABB)
+		window.draw(boundingBoxPlayer);
 
 		if (currentShape == CIRCLE)
 		window.draw(playerCircle);
+
+		if (currentShape == RAY)
+		window.draw(playerRay, 2, sf::Lines);
 
 		// Update the window
 		window.display();
