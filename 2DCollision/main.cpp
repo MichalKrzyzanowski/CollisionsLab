@@ -11,6 +11,8 @@
 
 using namespace std;
 
+void updateBoundingBox(VertexArray& t_box, GameObject& t_player);
+
 int main()
 {
 	// Create the main window
@@ -68,27 +70,63 @@ int main()
 	aabb_player.min = c2V(player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y);
 	aabb_player.max = c2V(player.getAnimatedSprite().getGlobalBounds().width / 6, player.getAnimatedSprite().getGlobalBounds().width / 6);
 
+	// setup capsule colision
+	sf::RectangleShape capsuleRect;
+	capsuleRect.setSize(sf::Vector2f{ 100, 50 });
+	capsuleRect.setPosition(sf::Vector2f{ 200, 200 });
+	capsuleRect.setFillColor(sf::Color(sf::Color(255, 255, 255, 0)));
+	capsuleRect.setOutlineThickness(1);
+	//capsuleRect.setout
+	sf::CircleShape capsuleCircles[2];
+
+	for (int i = 0; i < 2; i++)
+	{
+		capsuleCircles[i].setRadius(25);
+		capsuleCircles[i].setFillColor(sf::Color(255, 255, 255, 0));
+		capsuleCircles[i].setOutlineThickness(1);
+	}
+
+	capsuleCircles[0].setPosition(sf::Vector2f{ 200 - capsuleCircles[0].getRadius(), 200 });
+	capsuleCircles[1].setPosition(sf::Vector2f{ 300 - capsuleCircles[0].getRadius(), 200 });
+
+	c2Capsule capsule;
+	capsule.a = c2V(capsuleRect.getPosition().x, capsuleRect.getPosition().y + capsuleCircles[0].getRadius());
+	capsule.b = c2V(capsuleRect.getPosition().x + 100, capsuleRect.getPosition().y + capsuleCircles[0].getRadius());
+	capsule.r = 25;
+
+	// setup polygon
+	sf::CircleShape triangle(50, 3);
+	triangle.setPosition(200, 400);
+	triangle.setFillColor(sf::Color(255, 255, 255, 0));
+	triangle.setOutlineThickness(1);
+
+	c2Poly polygon;
+	polygon.count = 3;
+	polygon.verts[0] = c2V(triangle.getPoint(0).x + triangle.getPosition().x, triangle.getPoint(0).y + triangle.getPosition().y);
+	polygon.verts[1] = c2V(triangle.getPoint(1).x + triangle.getPosition().x, triangle.getPoint(1).y + triangle.getPosition().y);
+	polygon.verts[2] = c2V(triangle.getPoint(2).x + triangle.getPosition().x, triangle.getPoint(2).y + triangle.getPosition().y);
+	c2MakePoly(&polygon);
+
+	// setup ray
+	
+	sf::Vector2f rayPointOne{ 10, 10 };
+	sf::Vector2f rayPointTwo{ 50, 200 };
+	sf::Vertex ray[] =
+	{
+		sf::Vertex(rayPointOne),
+		sf::Vertex(rayPointTwo)
+	};
+
+	c2Ray rayCollision;
+	rayCollision.p = c2V(rayPointOne.x, rayPointOne.y);
+	rayCollision.d = c2Norm(c2V(rayPointOne.x, rayPointOne.y));
+	rayCollision.t = 100;
+	
+	//rayCollision.d
+
 	// setup bounding box
 	sf::VertexArray boundingBox(sf::LinesStrip);
-	/*boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });
-
-	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-		player.getAnimatedSprite().getPosition().y });
-
-	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-		player.getAnimatedSprite().getPosition().y });
-
-	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-		player.getAnimatedSprite().getPosition().y + player.getAnimatedSprite().getGlobalBounds().width });
-
-	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });
-
-	boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });*/
-
 	
-
-
-
 
 	// Initialize Input
 	Input input;
@@ -104,42 +142,21 @@ int main()
 	{
 		// Move Sprite Follow Mouse
 		player.getAnimatedSprite().setPosition(window.mapPixelToCoords(sf::Mouse::getPosition(window)));
-		
+
 		// Move The NPC
 		sf::Vector2f move_to(npc.getAnimatedSprite().getPosition().x + direction.x, npc.getAnimatedSprite().getPosition().y + direction.y);
-		boundingBox.clear();
 
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-			player.getAnimatedSprite().getPosition().y });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-			player.getAnimatedSprite().getPosition().y });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-			player.getAnimatedSprite().getPosition().y + player.getAnimatedSprite().getGlobalBounds().width });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x + player.getAnimatedSprite().getGlobalBounds().width,
-				player.getAnimatedSprite().getPosition().y + player.getAnimatedSprite().getGlobalBounds().width });
-		
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x,
-				player.getAnimatedSprite().getPosition().y + player.getAnimatedSprite().getGlobalBounds().width });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x,
-				player.getAnimatedSprite().getPosition().y + player.getAnimatedSprite().getGlobalBounds().width });
-
-		boundingBox.append(sf::Vector2f{ player.getAnimatedSprite().getPosition().x, player.getAnimatedSprite().getPosition().y });
+		updateBoundingBox(boundingBox, player);
 
 		if (move_to.x < 0) {
 			direction.x *= -1;
 			move_to.x = 0 + npc.getAnimatedSprite().getGlobalBounds().width;
 		}
-		else if (move_to.x + npc.getAnimatedSprite().getGlobalBounds().width >= 800) { 
+		else if (move_to.x + npc.getAnimatedSprite().getGlobalBounds().width >= 800) {
 			direction.x *= -1;
 			move_to.x = 800 - npc.getAnimatedSprite().getGlobalBounds().width;
 		}
-		else if (move_to.y < 0) { 
+		else if (move_to.y < 0) {
 			direction.y *= -1;
 			move_to.y = 0 + npc.getAnimatedSprite().getGlobalBounds().height;
 		}
@@ -147,12 +164,12 @@ int main()
 			direction.y *= -1;
 			move_to.y = 600 - npc.getAnimatedSprite().getGlobalBounds().height;
 		}
-		
+
 		npc.getAnimatedSprite().setPosition(move_to);
 
 		// Update NPC AABB set x and y
 		aabb_npc.min = c2V(
-			npc.getAnimatedSprite().getPosition().x, 
+			npc.getAnimatedSprite().getPosition().x,
 			npc.getAnimatedSprite().getPosition().y
 		);
 
@@ -165,13 +182,13 @@ int main()
 
 		// Update Player AABB
 		aabb_player.min = c2V(
-			player.getAnimatedSprite().getPosition().x, 
+			player.getAnimatedSprite().getPosition().x,
 			player.getAnimatedSprite().getPosition().y
 		);
 		aabb_player.max = c2V(
 			player.getAnimatedSprite().getPosition().x +
-			player.getAnimatedSprite().getGlobalBounds().width, 
-			player.getAnimatedSprite().getPosition().y + 
+			player.getAnimatedSprite().getGlobalBounds().width,
+			player.getAnimatedSprite().getPosition().y +
 			player.getAnimatedSprite().getGlobalBounds().height
 		);
 
@@ -217,15 +234,83 @@ int main()
 		// Check for collisions
 		result = c2AABBtoAABB(aabb_player, aabb_npc);
 		cout << ((result != 0) ? ("Collision") : "") << endl;
-		if (result){
-			player.getAnimatedSprite().setColor(sf::Color(255,0,0));
+
+		if (result) 
+		{
+			player.getAnimatedSprite().setColor(sf::Color(255, 0, 0));
+
 			for (int i = 0; i < boundingBox.getVertexCount(); i++)
 			{
 				boundingBox[i].color = sf::Color::Red;
 			}
 		}
-		else {
+
+		else
+		{
 			player.getAnimatedSprite().setColor(sf::Color(0, 255, 0));
+		}
+
+		result = 0;
+
+		// collision: AABB->Capsule
+		result = c2AABBtoCapsule(aabb_player, capsule);
+		cout << ((result != 0) ? ("Collision capsule") : "") << endl;
+
+		if (result)
+		{
+			for (int i = 0; i < 2; i++)
+			{
+				capsuleCircles[i].setOutlineColor(sf::Color::Red);
+			}
+
+			capsuleRect.setOutlineColor(sf::Color::Red);
+			
+		}
+
+		else
+		{
+			for (int i = 0; i < 2; i++)
+			{
+				capsuleCircles[i].setOutlineColor(sf::Color::White);
+			}
+
+			capsuleRect.setOutlineColor(sf::Color::White);
+		}
+
+		result = 0;
+
+		// collision: AABB->Poly
+		result = c2AABBtoPoly(aabb_player, &polygon, NULL);
+		cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+
+		if (result)
+		{
+
+			triangle.setOutlineColor(sf::Color::Red);
+
+		}
+
+		else
+		{
+			
+			triangle.setOutlineColor(sf::Color::White);
+		}
+
+		// collision: AABB->ray
+		result = c2AABBtoPoly(aabb_player, &polygon, NULL);
+		cout << ((result != 0) ? ("Collision polygon") : "") << endl;
+
+		if (result)
+		{
+
+			triangle.setOutlineColor(sf::Color::Red);
+
+		}
+
+		else
+		{
+
+			triangle.setOutlineColor(sf::Color::White);
 		}
 
 		// Clear screen
@@ -237,6 +322,16 @@ int main()
 		// Draw the NPC's Current Animated Sprite
 		window.draw(npc.getAnimatedSprite());
 
+		window.draw(capsuleRect);
+
+		for (int i = 0; i < 2; i++)
+		{
+			window.draw(capsuleCircles[i]);
+		}
+
+		window.draw(triangle);
+
+		window.draw(ray, 2, sf::Lines);
 		window.draw(boundingBox);
 
 		// Update the window
@@ -245,3 +340,30 @@ int main()
 
 	return EXIT_SUCCESS;
 };
+
+void updateBoundingBox(VertexArray& t_box, GameObject& t_player)
+{
+	t_box.clear();
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x, t_player.getAnimatedSprite().getPosition().y });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x + t_player.getAnimatedSprite().getGlobalBounds().width,
+		t_player.getAnimatedSprite().getPosition().y });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x + t_player.getAnimatedSprite().getGlobalBounds().width,
+		t_player.getAnimatedSprite().getPosition().y });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x + t_player.getAnimatedSprite().getGlobalBounds().width,
+		t_player.getAnimatedSprite().getPosition().y + t_player.getAnimatedSprite().getGlobalBounds().width });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x + t_player.getAnimatedSprite().getGlobalBounds().width,
+			t_player.getAnimatedSprite().getPosition().y + t_player.getAnimatedSprite().getGlobalBounds().width });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x,
+			t_player.getAnimatedSprite().getPosition().y + t_player.getAnimatedSprite().getGlobalBounds().width });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x,
+			t_player.getAnimatedSprite().getPosition().y + t_player.getAnimatedSprite().getGlobalBounds().width });
+
+	t_box.append(sf::Vector2f{ t_player.getAnimatedSprite().getPosition().x, t_player.getAnimatedSprite().getPosition().y });
+}
