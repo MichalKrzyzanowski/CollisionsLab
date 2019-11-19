@@ -2,7 +2,9 @@
 
 This is LAB 04 StarterKit. This project defines a 2D Collision StarterKit
 
-
+IMPORTANT:
+link to first part of lab: https://github.com/MichalKrzyzanowski/CollisionLabA
+this repo consists of part 2 and 3 of the lab
 ### What is this repository for? ###
 
 * Lab 04 a Experiment with difference collision types
