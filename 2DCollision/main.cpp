@@ -92,7 +92,7 @@ int main()
 	npcCircleCol.r = 50;
 
 
-	// setup capsule colision
+	// setup capsule shape and collision
 	sf::RectangleShape capsuleRect;
 	capsuleRect.setSize(sf::Vector2f{ 100, 50 });
 	capsuleRect.setPosition(sf::Vector2f{ 200, 200 });
@@ -116,7 +116,7 @@ int main()
 	capsule.b = c2V(capsuleRect.getPosition().x + 100, capsuleRect.getPosition().y + capsuleCircles[0].getRadius());
 	capsule.r = 25;
 
-	// setup polygon
+	// setup polygon(triangle) shape and collision
 	sf::CircleShape triangle(50, 3);
 	triangle.setPosition(200, 400);
 	triangle.setFillColor(sf::Color(255, 255, 255, 0));
@@ -129,7 +129,7 @@ int main()
 	polygon.verts[2] = c2V(triangle.getPoint(2).x + triangle.getPosition().x, triangle.getPoint(2).y + triangle.getPosition().y);
 	c2MakePoly(&polygon);
 
-	// setup player ray
+	// setup player ray and ray collision
 	sf::Vector2f rayPlayerPointOne{ 500, 100 };
 	sf::Vector2f rayPlayerPointTwo{ window.mapPixelToCoords(sf::Mouse::getPosition(window)) };
 	sf::Vertex playerRay[] =
@@ -140,6 +140,7 @@ int main()
 	
 	c2Ray playerRayCollision;
 
+	// calculate ray direction (unit vector)
 	playerRayCollision.p = c2V(rayPlayerPointOne.x, rayPlayerPointOne.y);
 
 	sf::Vector2f playerDistance = rayPlayerPointTwo - rayPlayerPointOne;
@@ -149,7 +150,7 @@ int main()
 	playerRayCollision.d = c2Norm(c2V(playerUnitVector.x, playerUnitVector.y));
 	playerRayCollision.t = playerMagnitude;
 
-	// setup ray
+	// setup npc ray and ray collision
 	sf::Vector2f rayPointOne{ 10, 10 };
 	sf::Vector2f rayPointTwo{ 50, 200 };
 	sf::Vertex ray[] =
@@ -161,6 +162,7 @@ int main()
 	c2Ray rayCollision;
 	c2Raycast cast;
 
+	// calculate ray direction (unit vector)
 	rayCollision.p = c2V(rayPointOne.x, rayPointOne.y);
 
 	sf::Vector2f distance = rayPointTwo - rayPointOne;
@@ -234,6 +236,7 @@ int main()
 
 		);
 
+		// update ray end points and collisions
 		rayPlayerPointTwo = sf::Vector2f{ window.mapPixelToCoords(sf::Mouse::getPosition(window)) };
 		playerRay[1].position = rayPlayerPointTwo;
 
@@ -313,7 +316,7 @@ int main()
 		npc.update();
 
 		
-
+		// collisions between AABB and other shape
 		if (currentShape == AABB)
 		{
 			// Check for collisions
@@ -349,6 +352,8 @@ int main()
 					capsuleCircles[i].setOutlineColor(sf::Color::Red);
 				}
 
+				
+
 				capsuleRect.setOutlineColor(sf::Color::Red);
 
 			}
@@ -374,6 +379,8 @@ int main()
 
 				triangle.setOutlineColor(sf::Color::Red);
 
+				
+
 			}
 
 			else
@@ -394,6 +401,8 @@ int main()
 				ray[0].color = sf::Color::Red;
 				ray[1].color = sf::Color::Red;
 
+				
+
 			}
 
 			else
@@ -404,6 +413,7 @@ int main()
 			}
 		}
 
+		// collisions between Circle and other shape
 		if (currentShape == CIRCLE)
 		{
 			// collision: Circle->Cirlce
@@ -514,6 +524,7 @@ int main()
 			}
 		}
 
+		// collisions between the player ray and other shape
 		if (currentShape == RAY)
 		{
 			// collision: ray->AABB
@@ -629,6 +640,8 @@ int main()
 		window.draw(boundingBox);
 		window.draw(npcCircle);
 
+
+		// drawing player shapes depending on current shape state
 		if (currentShape == AABB)
 		window.draw(boundingBoxPlayer);
 
@@ -645,6 +658,13 @@ int main()
 	return EXIT_SUCCESS;
 };
 
+
+/// <summary>
+/// function that sets up points of the bounding box vertex array
+/// clears the vertex also
+/// </summary>
+/// <param name="t_box">bouding box passed</param>
+/// <param name="t_player">player</param>
 void updateBoundingBox(VertexArray& t_box, GameObject& t_player)
 {
 	t_box.clear();
